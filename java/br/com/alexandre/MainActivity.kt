@@ -95,6 +95,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private val CHANNEL_DESCRIPTION = "Notificações importantes do sistema"
 
     private val URL_TO_LOAD = "https://i9gestao-sistemas.com.br/diario_frota/"
+    private val TEST_MODE = false // Set to true to load local test page
 
     // Códigos de requisição
     private val FILECHOOSER_RESULTCODE = 1
@@ -236,7 +237,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
                             webView.visibility = View.VISIBLE
 
                             if (webView.url == null || webView.url!!.isEmpty()) {
-                                webView.loadUrl(URL_TO_LOAD)
+                                val urlToLoad = if (TEST_MODE) {
+                                    "file:///android_asset/test.html"
+                                } else {
+                                    URL_TO_LOAD
+                                }
+                                webView.loadUrl(urlToLoad)
                             }
                         } catch (e: Exception) {
                             Log.e("NetworkCallback", "Erro no callback onAvailable", e)
@@ -281,7 +287,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 webView.visibility = View.VISIBLE
 
                 if (webView.url == null || webView.url!!.isEmpty()) {
-                    webView.loadUrl(URL_TO_LOAD)
+                    val urlToLoad = if (TEST_MODE) {
+                        "file:///android_asset/test.html"
+                    } else {
+                        URL_TO_LOAD
+                    }
+                    webView.loadUrl(urlToLoad)
                 }
             } else {
                 webView.visibility = View.GONE
@@ -627,8 +638,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 }
             }
 
-            // Carregar URL inicial
-            webView.loadUrl(URL_TO_LOAD)
+            // Load URL - use test page in test mode
+            val urlToLoad = if (TEST_MODE) {
+                "file:///android_asset/test.html"
+            } else {
+                URL_TO_LOAD
+            }
+            webView.loadUrl(urlToLoad)
         } catch (e: Exception) {
             Log.e("WebView", "Erro ao configurar WebView", e)
         }
