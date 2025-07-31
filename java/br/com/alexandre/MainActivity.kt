@@ -62,10 +62,20 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import br.com.alexandre.utils.PermissionHelper
+import br.com.alexandre.utils.PermissionResult
+import br.com.alexandre.utils.PermissionType
 import java.util.Random
 
 class MainActivity : AppCompatActivity(), LocationListener {
 
+    // Enhanced architecture components
+    private lateinit var permissionHelper: PermissionHelper
+    private lateinit var photoManager: PhotoManager
+    private lateinit var customNotificationManager: CustomNotificationManager
+    private lateinit var webViewInterface: WebViewInterface
+    
+    // Legacy components for backward compatibility
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var offlineLayout: ConstraintLayout
@@ -122,66 +132,54 @@ class MainActivity : AppCompatActivity(), LocationListener {
             super.onCreate(savedInstanceState)
             setContentView(R.layout.activity_main)
 
-            // NOVO: Criar o canal de notificação
-            createNotificationChannel()
+            // Initialize enhanced architecture components
+            initializeComponents()
 
-            // Inicializando views
-            try {
-                webView = findViewById(R.id.webView)
-                progressBar = findViewById(R.id.progressBar)
-                offlineLayout = findViewById(R.id.offlineView)
-                offlineText = findViewById(R.id.offlineText)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao inicializar views", e)
-            }
+            // Initialize views
+            initializeViews()
 
-            // Configurar WebView
-            try {
-                setupWebView()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao configurar WebView", e)
-            }
+            // Configure WebView with enhanced performance
+            setupWebView()
 
-            // Configurar callback de rede
-            try {
-                setupNetworkCallback()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao configurar network callback", e)
-            }
+            // Setup network monitoring
+            setupNetworkCallback()
 
-            // Verificar permissões
-            try {
-                checkAndRequestPermissions()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao verificar permissões", e)
-            }
+            // Check and request permissions
+            checkAndRequestPermissions()
 
-            // Registrar o receiver para download
-            try {
-                registerDownloadReceiver()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao registrar download receiver", e)
-            }
+            // Register download receiver
+            registerDownloadReceiver()
+
         } catch (e: Exception) {
-            Log.e("MainActivity", "Erro crítico no onCreate", e)
+            Log.e("MainActivity", "Critical error in onCreate", e)
         }
     }
 
-    // NOVO: Método para criar o canal de notificação
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
-                description = CHANNEL_DESCRIPTION
-                enableLights(true)
-                lightColor = Color.BLUE
-                enableVibration(true)
-            }
+    private fun initializeComponents() {
+        try {
+            permissionHelper = PermissionHelper(this)
+            photoManager = PhotoManager(this, permissionHelper)
+            customNotificationManager = CustomNotificationManager(this)
+            // webViewInterface will be initialized after webView is available
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error initializing components", e)
+        }
+    }
 
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-
-            Log.d("Notification", "Canal de notificação criado")
+    private fun initializeViews() {
+        try {
+            webView = findViewById(R.id.webView)
+            progressBar = findViewById(R.id.progressBar)
+            offlineLayout = findViewById(R.id.offlineView)
+            offlineText = findViewById(R.id.offlineText)
+            
+            // Initialize webViewInterface after webView is available
+            webViewInterface = WebViewInterface(this, webView, photoManager, customNotificationManager)
+            
+            // Set the webViewInterface in customNotificationManager
+            customNotificationManager.setWebViewInterface(webViewInterface)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error initializing views", e)
         }
     }
 
@@ -322,38 +320,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     private fun checkAndRequestPermissions() {
         try {
-            val permissionsToRequest = REQUIRED_PERMISSIONS.filter {
-                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-            }.toTypedArray()
-
-            if (permissionsToRequest.isNotEmpty()) {
-                ActivityCompat.requestPermissions(this, permissionsToRequest, LOCATION_PERMISSION_CODE)
+            if (!permissionHelper.hasAllPermissions()) {
+                permissionHelper.requestAllPermissions()
             } else {
-                // Todas as permissões já concedidas
                 startLocationUpdates()
             }
-
-            // Verificar especificamente a permissão de notificações
-            checkNotificationPermission()
         } catch (e: Exception) {
-            Log.e("Permissions", "Erro ao verificar permissões", e)
-        }
-    }
-
-    private fun checkNotificationPermission() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        NOTIFICATION_PERMISSION_CODE
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("Permissions", "Erro ao verificar permissão de notificação", e)
+            Log.e("Permissions", "Error checking permissions", e)
         }
     }
 
@@ -399,62 +372,80 @@ class MainActivity : AppCompatActivity(), LocationListener {
         try {
             userLatitude = location.latitude
             userLongitude = location.longitude
-            Log.d("Location", "Localização atual: $userLatitude, $userLongitude")
+            Log.d("Location", "Location updated: $userLatitude, $userLongitude")
 
-            // Passar a localização para a WebView
+            // Update PhotoManager with new location
+            photoManager.updateLocation(userLatitude, userLongitude)
+
+            // Pass location to WebView
             webView.evaluateJavascript(
                 "javascript:if(typeof updateLocation === 'function'){updateLocation($userLatitude, $userLongitude);}",
                 null
             )
         } catch (e: Exception) {
-            Log.e("Location", "Erro ao processar mudança de localização", e)
+            Log.e("Location", "Error processing location change", e)
         }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         try {
-            // Configurações básicas
+            // Enhanced WebView performance optimization
             with(webView.settings) {
+                // Core JavaScript settings
                 javaScriptEnabled = true
                 domStorageEnabled = true
-
-                // Caching
-                cacheMode = WebSettings.LOAD_DEFAULT
-
-                // Configurações do DOM Storage
                 databaseEnabled = true
-
-                // Configurações de UX
-                setSupportZoom(true)
-                builtInZoomControls = true
-                displayZoomControls = false
-
-                // Viewport para comportamento responsivo
-                useWideViewPort = true
-                loadWithOverviewMode = true
-
-                // Configuração para upload de arquivos
+                
+                // Advanced caching strategies
+                cacheMode = WebSettings.LOAD_DEFAULT
+                setAppCacheEnabled(true)
+                setAppCachePath(cacheDir.absolutePath)
+                
+                // File access permissions
                 allowFileAccess = true
-
-                // Otimizações para carregamento mais rápido
+                allowContentAccess = true
+                
+                // Enhanced UX settings
+                setSupportZoom(false)
+                builtInZoomControls = false
+                displayZoomControls = false
+                loadWithOverviewMode = true
+                useWideViewPort = true
+                
+                // Performance optimizations
+                setRenderPriority(WebSettings.RenderPriority.HIGH)
                 loadsImagesAutomatically = true
-
-                // Configurações para permitir download de arquivos
+                blockNetworkImage = false
+                blockNetworkLoads = false
+                
+                // Security and mixed content
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                 }
-                allowContentAccess = true
-
-                // Permitir JavaScript interfaces
-                javaScriptCanOpenWindowsAutomatically = true
-
-                // NOVO: Necessário para gravação/reprodução de mídia sem interação direta do usuário
+                
+                // Media and interaction settings
                 mediaPlaybackRequiresUserGesture = false
+                javaScriptCanOpenWindowsAutomatically = true
+                
+                // Text and display settings
+                textZoom = 100
+                minimumFontSize = 8
+                minimumLogicalFontSize = 8
+                defaultFontSize = 16
+                defaultFixedFontSize = 16
+                
+                // Network and loading optimizations
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING)
+                }
             }
 
-            // Adicionar interface JavaScript para captura de tela e PDF
-            webView.addJavascriptInterface(WebAppInterface(), "AndroidInterface")
+            // Enhanced WebView interface with new architecture
+            webView.addJavascriptInterface(webViewInterface, "AndroidInterface")
+
+            // Legacy interface for backward compatibility
+            webView.addJavascriptInterface(WebAppInterface(), "AndroidInterfaceLegacy")
 
             // Configuração de cookies
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -1106,6 +1097,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
         try {
             super.onActivityResult(requestCode, resultCode, data)
 
+            // Handle photo-related results with new PhotoManager
+            if (requestCode in listOf(PhotoManager.CAMERA_REQUEST_CODE, PhotoManager.GALLERY_REQUEST_CODE, PhotoManager.GALLERY_MULTIPLE_REQUEST_CODE)) {
+                photoManager.handleActivityResult(requestCode, resultCode, data)
+                return
+            }
+
+            // Legacy file chooser handling for backward compatibility
             if (filePathCallback == null) {
                 return
             }
@@ -1136,7 +1134,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 filePathCallback = null
             }
         } catch (e: Exception) {
-            Log.e("ActivityResult", "Erro ao processar resultado", e)
+            Log.e("ActivityResult", "Error processing result", e)
             filePathCallback?.onReceiveValue(null)
             filePathCallback = null
         }
@@ -1150,76 +1148,90 @@ class MainActivity : AppCompatActivity(), LocationListener {
         try {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-            when (requestCode) {
-                100 -> {
-                    // Resposta às permissões de upload
-                    if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                        showOptionsDialog()
+            val result = permissionHelper.handlePermissionResult(requestCode, permissions, grantResults)
+            
+            when (result.type) {
+                PermissionType.ALL -> {
+                    if (result.granted) {
+                        startLocationUpdates()
                     } else {
-                        // Se apenas permissão de armazenamento foi concedida, podemos abrir a galeria
-                        if (permissions.size > 1 &&
-                            permissions[0] == Manifest.permission.CAMERA &&
-                            permissions[1].contains("STORAGE") &&
-                            grantResults.size > 1 &&
-                            grantResults[0] != PackageManager.PERMISSION_GRANTED &&
-                            grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-                            openGallery()
-                        } else {
-                            filePathCallback?.onReceiveValue(null)
-                            filePathCallback = null
-                            Toast.makeText(this, "Permissões negadas", Toast.LENGTH_SHORT).show()
-                        }
+                        Log.d("Permissions", "Some permissions denied")
                     }
                 }
-                LOCATION_PERMISSION_CODE -> {
-                    // Resposta às permissões de localização
-                    if (grantResults.isNotEmpty() &&
-                        (permissions.contains(Manifest.permission.ACCESS_FINE_LOCATION) ||
-                                permissions.contains(Manifest.permission.ACCESS_COARSE_LOCATION)) &&
-                        grantResults.any { it == PackageManager.PERMISSION_GRANTED }) {
-                        // Pelo menos uma permissão de localização concedida
+                PermissionType.PHOTO -> {
+                    photoManager.onPermissionsResult(result.granted)
+                }
+                PermissionType.LOCATION -> {
+                    if (result.granted) {
                         startLocationUpdates()
                     }
                 }
-                NOTIFICATION_PERMISSION_CODE -> {
-                    // Resposta à permissão de notificação
-                    if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        Log.d("Notification", "Permissão de notificação concedida")
-                        // NOVO: Você pode exibir uma notificação de teste aqui se desejar
+                PermissionType.NOTIFICATION -> {
+                    if (result.granted) {
+                        Log.d("Notification", "Notification permission granted")
                     } else {
-                        Log.d("Notification", "Permissão de notificação negada")
                         Toast.makeText(
                             this,
-                            "As notificações não serão exibidas sem a permissão",
+                            "Notifications won't be displayed without permission",
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
-                1001 -> {
-                    // Resposta à permissão de armazenamento para download
-                    if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        Toast.makeText(this, "Agora você pode baixar arquivos", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this, "Permissão necessária para baixar arquivos", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                // NOVO: Lida com a resposta da permissão de áudio
-                AUDIO_PERMISSION_REQUEST_CODE -> {
-                    if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        // Permissão concedida pelo usuário, agora podemos concedê-la ao WebView
+                PermissionType.AUDIO -> {
+                    if (result.granted) {
                         pendingPermissionRequest?.grant(pendingPermissionRequest!!.resources)
-                        Toast.makeText(this, "Permissão de áudio concedida.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Audio permission granted", Toast.LENGTH_SHORT).show()
                     } else {
-                        // Permissão negada pelo usuário, negamos no WebView
                         pendingPermissionRequest?.deny()
-                        Toast.makeText(this, "Permissão de áudio negada. A gravação não funcionará.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Audio permission denied. Recording won't work.", Toast.LENGTH_LONG).show()
                     }
-                    // Limpar a solicitação pendente
                     pendingPermissionRequest = null
                 }
+                else -> {
+                    // Handle legacy permission requests
+                    handleLegacyPermissionResult(requestCode, permissions, grantResults)
+                }
             }
+
         } catch (e: Exception) {
-            Log.e("Permissions", "Erro ao processar resultado de permissões", e)
+            Log.e("Permissions", "Error processing permission results", e)
+        }
+    }
+
+    private fun handleLegacyPermissionResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        when (requestCode) {
+            100 -> {
+                // Legacy upload permissions response
+                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                    showOptionsDialog()
+                } else {
+                    // If only storage permission was granted, open gallery
+                    if (permissions.size > 1 &&
+                        permissions[0] == Manifest.permission.CAMERA &&
+                        permissions[1].contains("STORAGE") &&
+                        grantResults.size > 1 &&
+                        grantResults[0] != PackageManager.PERMISSION_GRANTED &&
+                        grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                        openGallery()
+                    } else {
+                        filePathCallback?.onReceiveValue(null)
+                        filePathCallback = null
+                        Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            1001 -> {
+                // Legacy download permission response
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "You can now download files", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Permission required to download files", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -1278,19 +1290,24 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onDestroy() {
         try {
-            // Desregistrar o callback de rede
+            // Clean up enhanced components
+            if (::customNotificationManager.isInitialized) {
+                customNotificationManager.destroy()
+            }
+
+            // Unregister network callback
             if (::connectivityManager.isInitialized && ::networkCallback.isInitialized) {
                 try {
                     connectivityManager.unregisterNetworkCallback(networkCallback)
                 } catch (e: Exception) {
-                    Log.e("NetworkCallback", "Erro ao desregistrar callback: ${e.message}")
+                    Log.e("NetworkCallback", "Error unregistering callback: ${e.message}")
                 }
             }
 
             webView.destroy()
             super.onDestroy()
         } catch (e: Exception) {
-            Log.e("Lifecycle", "Erro no onDestroy", e)
+            Log.e("Lifecycle", "Error in onDestroy", e)
             super.onDestroy()
         }
     }
