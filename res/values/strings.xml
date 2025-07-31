@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Frotas Gov</string>
+    <string name="no_internet_connection">Sem conexão com a Internet</string>
+    <string name="please_check_connection">Por favor, verifique sua conexão e tente novamente.</string>
+    <string name="retry">Tentar novamente</string>
+    <string name="action_capture_pdf">Capturar PDF</string>
+    <string name="channel_name">Notificações do Aplicativo</string>
+    <string name="channel_description">Notificações importantes do sistema</string>
+</resources>
