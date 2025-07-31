@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebView Test - Enhanced Features</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #3367D6;
+        }
+        .status {
+            background-color: #E8F5E8;
+            border: 1px solid #4CAF50;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #FFEBEE;
+            border: 1px solid #F44336;
+            color: #D32F2F;
+        }
+        .info {
+            background-color: #E3F2FD;
+            border: 1px solid #2196F3;
+            color: #1976D2;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #4285F4;
+            background-color: #f9f9f9;
+        }
+        #log {
+            background-color: #2d2d2d;
+            color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Enhanced WebView Test</h1>
+        <p>Test the enhanced WebView features including photo capture, notifications, and device integration.</p>
+
+        <div class="section">
+            <h2>📸 Photo Management</h2>
+            <button onclick="takePhoto()">Take Photo</button>
+            <button onclick="selectFromGallery(false)">Select from Gallery</button>
+            <button onclick="selectFromGallery(true)">Select Multiple</button>
+            <button onclick="captureScreenshot()">Capture Screenshot</button>
+        </div>
+
+        <div class="section">
+            <h2>🔔 Notification System</h2>
+            <button onclick="showInfoNotification()">Show Info</button>
+            <button onclick="showMessageNotification()">Show Message</button>
+            <button onclick="showAlertNotification()">Show Alert</button>
+            <button onclick="startPolling()">Start Message Polling</button>
+            <button onclick="stopPolling()">Stop Message Polling</button>
+        </div>
+
+        <div class="section">
+            <h2>📱 Device Information</h2>
+            <button onclick="getDeviceInfo()">Get Device Info</button>
+            <button onclick="getLocation()">Get Location</button>
+            <button onclick="checkPermissions()">Check Permissions</button>
+            <button onclick="requestPermissions()">Request Permissions</button>
+        </div>
+
+        <div class="section">
+            <h2>📊 Status & Logs</h2>
+            <div id="status" class="status info">Ready to test features...</div>
+            <div id="log"></div>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        let logElement = document.getElementById('log');
+        let statusElement = document.getElementById('status');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            console.log(logEntry);
+            
+            if (logElement) {
+                logElement.innerHTML += logEntry + '<br>';
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+        }
+
+        function updateStatus(message, type = 'info') {
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.className = `status ${type}`;
+            }
+            log(message, type);
+        }
+
+        // Photo Management Functions
+        function takePhoto() {
+            log('Taking photo...');
+            updateStatus('Taking photo...', 'info');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.takePhoto();
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function selectFromGallery(multiple = false) {
+            log(`Selecting from gallery (multiple: ${multiple})...`);
+            updateStatus('Opening gallery...', 'info');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.selectFromGallery(multiple);
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function captureScreenshot() {
+            log('Capturing screenshot...');
+            updateStatus('Capturing screenshot...', 'info');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.captureScreenshot();
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        // Notification Functions
+        function showInfoNotification() {
+            log('Showing info notification...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.showNotification('Info', 'This is an info notification', 'info');
+                updateStatus('Info notification sent', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function showMessageNotification() {
+            log('Showing message notification...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.showNotification('New Message', 'You have a new chat message!', 'message');
+                updateStatus('Message notification sent', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function showAlertNotification() {
+            log('Showing alert notification...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.showNotification('Alert', 'This is an important alert!', 'alert');
+                updateStatus('Alert notification sent', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function startPolling() {
+            log('Starting message polling (1 minute interval)...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.startMessagePolling(1);
+                updateStatus('Message polling started', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function stopPolling() {
+            log('Stopping message polling...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.stopMessagePolling();
+                updateStatus('Message polling stopped', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        // Device Information Functions
+        function getDeviceInfo() {
+            log('Getting device information...');
+            if (typeof AndroidInterface !== 'undefined') {
+                const deviceInfo = AndroidInterface.getDeviceInfo();
+                log(`Device Info: ${deviceInfo}`);
+                updateStatus('Device info retrieved', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function getLocation() {
+            log('Getting location...');
+            if (typeof AndroidInterface !== 'undefined') {
+                const location = AndroidInterface.getLocation();
+                log(`Location: ${location}`);
+                updateStatus('Location retrieved', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function checkPermissions() {
+            log('Checking permissions...');
+            if (typeof AndroidInterface !== 'undefined') {
+                const permissions = AndroidInterface.checkPermissions();
+                log(`Permissions: ${permissions}`);
+                updateStatus('Permissions checked', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function requestPermissions() {
+            log('Requesting permissions...');
+            if (typeof AndroidInterface !== 'undefined') {
+                AndroidInterface.requestPermissions();
+                updateStatus('Permission request sent', 'info');
+            } else {
+                updateStatus('AndroidInterface not available', 'error');
+            }
+        }
+
+        function clearLog() {
+            if (logElement) {
+                logElement.innerHTML = '';
+            }
+        }
+
+        // Event Listeners for custom events
+        document.addEventListener('photoSelected', function(event) {
+            log(`Photo selected event: ${JSON.stringify(event.detail)}`);
+            updateStatus('Photo selected successfully', 'info');
+        });
+
+        document.addEventListener('gallerySelected', function(event) {
+            log(`Gallery selected event: ${JSON.stringify(event.detail)}`);
+            updateStatus('Gallery selection completed', 'info');
+        });
+
+        document.addEventListener('newMessageNotification', function(event) {
+            log(`New message notification: ${JSON.stringify(event.detail)}`);
+            updateStatus(`New message: ${event.detail.title} - ${event.detail.message}`, 'info');
+        });
+
+        // Location update handler (if implemented in the web app)
+        function updateLocation(latitude, longitude) {
+            log(`Location updated: ${latitude}, ${longitude}`);
+            updateStatus(`Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, 'info');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('WebView Test page loaded');
+            if (typeof AndroidInterface !== 'undefined') {
+                updateStatus('AndroidInterface available - Ready to test!', 'info');
+            } else {
+                updateStatus('AndroidInterface not detected - Running in browser?', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
